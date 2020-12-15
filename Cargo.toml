@@ -1,0 +1,25 @@
+[package]
+name = "clobber"
+version = "0.1.0"
+authors = ["Emelie <em@nao.sh>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dirs-next = "2.0"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "0.2", features = ["macros", "sync"] }
+futures = "0.3"
+toml = "0.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.2", features = ["parking_lot"] }
+
+
+[dependencies.matrix-sdk]
+git = "https://github.com/matrix-org/matrix-rust-sdk"
+rev = "d9e5a17"
+default_features = false
+features = ["encryption", "sqlite_cryptostore", "messages", "rustls-tls", "unstable-synapse-quirks"]
