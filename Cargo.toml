@@ -16,7 +16,11 @@ futures = "0.3"
 toml = "0.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.2", features = ["parking_lot"] }
-
+rpassword = "5.0"
+rand = "0.7"
+clap = "2.33"
+async-trait = "0.1"
+# matrix-sdk-common-macros = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "d9e5a17" }
 
 [dependencies.matrix-sdk]
 git = "https://github.com/matrix-org/matrix-rust-sdk"
