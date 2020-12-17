@@ -109,8 +109,8 @@ pub async fn login() -> Result<Client> {
     Ok(client)
 }
 
+/// Construct matrix_sdk ClientConfig
 fn client_config() -> Result<ClientConfig> {
-    // Construct matrix_sdk ClientConfig
     let client_config = ClientConfig::new()
         .user_agent(&format!("{}/{}", PROGRAM_NAME, PROGRAM_VERSION))?
         .store_path(Config::get_data_dir()?);

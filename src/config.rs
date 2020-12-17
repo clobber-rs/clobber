@@ -27,7 +27,7 @@ use std::process;
 use tracing::{debug, error, info, warn};
 
 /// Top-level configuration struct.
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Default)]
 pub struct Config {
     /// Homeserver-related configuration.
     pub homeserver: HomeserverConfig,
@@ -92,10 +92,7 @@ impl Config {
 
     /// Constructor of top-level Config struct. Used for generating an empty example configuration.
     pub fn new() -> Self {
-        Self {
-            bot: BotConfig::default(),
-            homeserver: HomeserverConfig::default(),
-        }
+        Self::default()
     }
 }
 
