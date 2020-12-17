@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Command handling and other bot functionality.
+
 use async_trait::async_trait;
 use matrix_sdk::{
     events::{room::message::MessageEventContent, SyncMessageEvent},
@@ -23,6 +25,7 @@ use matrix_sdk::{
 use crate::matrix::MatrixListener;
 
 #[async_trait]
+#[allow(unused_variables)]
 impl EventEmitter for MatrixListener {
     async fn on_room_message(&self, room: SyncRoom, event: &SyncMessageEvent<MessageEventContent>) {
     }

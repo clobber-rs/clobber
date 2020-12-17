@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Matrix-related functionality.
+
 use crate::config::{Config, SessionExt};
 use crate::{PROGRAM_NAME, PROGRAM_VERSION};
 use anyhow::Result;
@@ -25,13 +27,18 @@ use std::io;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
+/// Struct containing info collected from user via interactive login, used for initial login.
 pub struct InteractiveLogin {
+    /// Homeserver URL
     pub url: Url,
+    /// Username
     pub username: String,
+    /// Password
     pub password: String,
 }
 
 impl InteractiveLogin {
+    /// Interactively collects login information from user via stdin
     pub fn from_stdin() -> Result<Self> {
         println!("Enter homeserver URL: ");
         let mut url = String::new();
@@ -50,6 +57,7 @@ impl InteractiveLogin {
     }
 }
 
+/// Perform initial login with interactive login information collected from user
 pub async fn interactive_login() -> Result<Client> {
     debug!("Starting interactive login flow");
     // Set device display name to randomized string. Example: "Clobber_vzN2gq"
@@ -90,6 +98,7 @@ pub async fn interactive_login() -> Result<Client> {
     Ok(client)
 }
 
+/// Restore login from saved session
 pub async fn login() -> Result<Client> {
     let client_config = client_config()?;
     let config = Config::read_config()?;
@@ -108,12 +117,16 @@ fn client_config() -> Result<ClientConfig> {
     Ok(client_config)
 }
 
+/// Listener struct for incoming matrix events
 pub struct MatrixListener {
+    /// Instance of config::Config
     pub config: Config,
+    /// Instance of matrix_sdk::Client
     pub client: Client,
 }
 
 impl MatrixListener {
+    /// Constructor for MatrixListener
     pub fn new(config: Config, client: Client) -> Self {
         Self { config, client }
     }

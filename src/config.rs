@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! Persistent storage of configuration/data and related functionality.
+
 use anyhow::Result;
 use matrix_sdk::identifiers::UserId;
 use serde::{Deserialize, Serialize};
@@ -24,13 +26,17 @@ use std::process;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
+/// Top-level configuration struct.
 #[derive(Deserialize, Serialize)]
 pub struct Config {
+    /// Homeserver-related configuration.
     pub homeserver: HomeserverConfig,
+    /// Bot-related configuration.
     pub bot: BotConfig,
 }
 
 impl Config {
+    /// Reads configuration from file, or creates one if one does not exist. Also checks directory permissions to ensure sensitive data is not readable by others.
     pub fn read_config() -> Result<Self> {
         // $XDG_CONFIG_HOME/clobber or $HOME/.config/clobber
         let config_dir = dirs::config_dir().unwrap().join("clobber");
@@ -58,6 +64,7 @@ impl Config {
         Ok(toml::from_slice(&data)?)
     }
 
+    /// Writes configuration to file.
     pub fn write_config(&self, path: &PathBuf) -> Result<()> {
         let content = toml::to_string_pretty(&self)?;
         fs::write(&path, content)?;
@@ -65,6 +72,7 @@ impl Config {
         Ok(())
     }
 
+    /// Returns path to data directory, or creates one if one does not exist. Also checks directory permissions to ensure sensitive data is not readable by others.
     pub fn get_data_dir() -> Result<PathBuf> {
         let data_dir = dirs::data_dir().unwrap().join("clobber");
 
@@ -82,6 +90,7 @@ impl Config {
         Ok(data_dir)
     }
 
+    /// Constructor of top-level Config struct. Used for generating an empty example configuration.
     pub fn new() -> Self {
         Self {
             bot: BotConfig::default(),
@@ -90,8 +99,11 @@ impl Config {
     }
 }
 
+/// Extension trait for matrix_sdk::Session. Provides convenience functions for loading and saving sessions.
 pub trait SessionExt: Sized {
+    /// Load session from file.
     fn load_session() -> Result<Self>;
+    /// Save session to file.
     fn save_session(&self, path: &PathBuf) -> Result<()>;
 }
 
@@ -108,13 +120,18 @@ impl SessionExt for matrix_sdk::Session {
     }
 }
 
-#[derive(Deserialize, Serialize, Default)]
-pub struct BotConfig {
-    pub command_prefix: String,
-    pub allow_invites: Vec<UserId>,
-}
-
+/// Homeserver-related configuration.
 #[derive(Deserialize, Serialize, Default)]
 pub struct HomeserverConfig {
+    /// Homeserver URL
     pub url: String,
+}
+
+/// Bot-related configuration.
+#[derive(Deserialize, Serialize, Default)]
+pub struct BotConfig {
+    /// Prefix used to invoke bot commands.
+    pub command_prefix: String,
+    /// Collection of users the bot will accept invites from.
+    pub allow_invites: Vec<UserId>,
 }

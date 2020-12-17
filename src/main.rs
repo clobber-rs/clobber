@@ -23,9 +23,9 @@
 #![warn(missing_docs)]
 #![warn(clippy::missing_docs_in_private_items)]
 
-mod bot;
-mod config;
-mod matrix;
+pub mod bot;
+pub mod config;
+pub mod matrix;
 
 extern crate clap;
 extern crate dirs_next as dirs;
