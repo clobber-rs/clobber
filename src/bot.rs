@@ -18,9 +18,20 @@
 
 use async_trait::async_trait;
 use matrix_sdk::{
-    events::{room::message::MessageEventContent, SyncMessageEvent},
+    events::{
+        room::{
+            member::{MemberEventContent, MembershipState},
+            message::MessageEventContent,
+        },
+        StrippedStateEvent, SyncMessageEvent,
+    },
     EventEmitter, SyncRoom,
 };
+use std::time::Duration;
+
+use tokio::time::delay_for;
+#[allow(unused_imports)]
+use tracing::{debug, error, info, warn};
 
 use crate::matrix::MatrixListener;
 
@@ -28,5 +39,60 @@ use crate::matrix::MatrixListener;
 #[allow(unused_variables)]
 impl EventEmitter for MatrixListener {
     async fn on_room_message(&self, room: SyncRoom, event: &SyncMessageEvent<MessageEventContent>) {
+    }
+
+    async fn on_stripped_state_member(
+        &self,
+        room: SyncRoom,
+        room_member: &StrippedStateEvent<MemberEventContent>,
+        _: Option<MemberEventContent>,
+    ) {
+        // If `m.member` event is an invite and the bot is the invitee
+        if room_member.content.membership == MembershipState::Invite
+            && room_member.state_key == self.client.user_id().await.unwrap()
+        {
+            accept_invite(&self, room, &room_member).await;
+        }
+    }
+}
+
+// Inspired by the AutoJoin example in matrix-rust-sdk
+/// Handles incoming invites.
+async fn accept_invite(
+    listener: &MatrixListener,
+    room: SyncRoom,
+    room_member: &StrippedStateEvent<MemberEventContent>,
+) {
+    if let SyncRoom::Invited(room) = room {
+        let room = room.read().await;
+        if !listener
+            .config
+            .bot
+            .allow_invites
+            .iter()
+            .any(|user| user == &room_member.sender)
+        {
+            info!(
+                "Unauthorized user {} tried to invite bot to {}",
+                &room_member.sender, &room.room_id
+            );
+            return;
+        }
+        debug!("Joining room: {}", room.room_id);
+        let mut delay = 2;
+        while let Err(e) = listener.client.join_room_by_id(&room.room_id).await {
+            warn!(
+                "Failed to join room: {} ({:?}), retrying in {}s",
+                room.room_id, e, delay
+            );
+
+            delay_for(Duration::from_secs(delay)).await;
+            delay *= 2;
+            if delay > 3600 {
+                error!("Couldn't join room {} ({:?})", room.room_id, e);
+                break;
+            }
+        }
+        info!("Joined room: {}", room.room_id);
     }
 }
