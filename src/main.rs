@@ -87,8 +87,5 @@ async fn main() -> Result<()> {
     // Sync until the end of ~time~
     client.sync(settings).await;
 
-    // Initialize matrix_sdk Client
-    //let client = Client::new_with_config();
-
     Ok(())
 }

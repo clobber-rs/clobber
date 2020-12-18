@@ -88,6 +88,9 @@ async fn handle_command(
     room: &Room,
     event: &SyncMessageEvent<MessageEventContent>,
 ) {
+    if commands.len() < 2 {
+        return;
+    }
     let base_command = commands[1];
     let arguments = &commands[2..];
     match base_command {
