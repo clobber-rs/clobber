@@ -1,0 +1,6 @@
+[homeserver]
+url = 'https://domain.tld'
+
+[bot]
+command_prefix = '?clobber'
+allow_invites = ['@user:domain.tld']

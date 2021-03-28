@@ -41,7 +41,6 @@ use crate::matrix::MatrixListener;
 #[async_trait]
 impl EventHandler for MatrixListener {
     async fn on_room_message(&self, room: Room, event: &SyncMessageEvent<MessageEventContent>) {
-        info!("Is this thing even running");
         if let Room::Joined(room) = room {
             // Match on m.text messages and get the message body
             let msg_body = if let SyncMessageEvent {

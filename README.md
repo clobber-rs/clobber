@@ -5,11 +5,23 @@ Moderation bot for matrix.
 ## Planned features
 - [x] Matrix & bot base
   - [x] Accept invites
+  - [ ] Management room
+  - [ ] User management (kick/ban/mute/PL etc)
+  - [ ] State handling
+    - [ ] Account data
+      - [ ] Protected rooms
+      - [ ] Watched rooms
+      - [ ] Settings
+    - [ ] Room state
+      - [ ] ACL management
+      - [ ] Ban management
+      - [ ] PL management
   - [x] Command handling
     - [ ] kick
     - [ ] ban
     - [ ] unban
     - [ ] mute
+    - [ ] powerlevel
     - [ ] redact
     - [ ] help
     - [ ] status
@@ -18,11 +30,6 @@ Moderation bot for matrix.
     - [ ] Display name
     - [ ] Avatar
     - [ ] Pretty output
-- [ ] Management
-  - [ ] Management room
-  - [ ] User management (kick/ban/mute etc)
-  - [ ] ACL management (set and read ACLs)
-  - [ ] Room protection
 - [ ] Other
   - [ ] Internationalization (?)
 
