@@ -21,54 +21,63 @@ use matrix_sdk::{
     events::{
         room::{
             member::{MemberEventContent, MembershipState},
-            message::{
-                MessageEventContent, NoticeMessageEventContent, Relation, TextMessageEventContent,
-            },
+            message::{MessageEventContent, MessageType, Relation, TextMessageEventContent},
             relationships::InReplyTo,
         },
         AnyMessageEventContent, StrippedStateEvent, SyncMessageEvent,
     },
-    identifiers::{EventId, RoomId},
-    Client, EventEmitter, Room, SyncRoom,
+    identifiers::EventId,
+    room::{Joined, Room},
+    Client, EventHandler,
 };
 use std::time::Duration;
 
-use tokio::time::delay_for;
+use tokio::time::sleep;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
 use crate::matrix::MatrixListener;
 
 #[async_trait]
-#[allow(unused_variables)]
-impl EventEmitter for MatrixListener {
-    async fn on_room_message(&self, room: SyncRoom, event: &SyncMessageEvent<MessageEventContent>) {
-        if let SyncRoom::Joined(room) = room {
-            let room = room.read().await;
+impl EventHandler for MatrixListener {
+    async fn on_room_message(&self, room: Room, event: &SyncMessageEvent<MessageEventContent>) {
+        info!("Is this thing even running");
+        if let Room::Joined(room) = room {
+            // Match on m.text messages and get the message body
             let msg_body = if let SyncMessageEvent {
-                content: MessageEventContent::Text(TextMessageEventContent { body: msg_body, .. }),
+                content:
+                    MessageEventContent {
+                        msgtype: MessageType::Text(TextMessageEventContent { body: msg_body, .. }),
+                        ..
+                    },
                 ..
             } = event
             {
-                msg_body.clone()
+                info!("Matching on received message");
+                msg_body
             } else {
-                String::new()
+                info!("Not matching on received message");
+                return;
             };
-            if msg_body.starts_with(&self.config.bot.command_prefix) {
-                let mut commands: Vec<&str> = msg_body.split(' ').collect();
+            if msg_body
+                .trim_start()
+                .starts_with(&self.config.bot.command_prefix)
+            {
+                let mut words: Vec<&str> = msg_body.split(' ').collect();
                 // Split prefix into separate word if 1 char long. don't judge ;-;
                 if self.config.bot.command_prefix.chars().count() == 1 {
-                    commands[0] = &commands[0][1..];
-                    commands.insert(0, &self.config.bot.command_prefix);
+                    words[0] = &words[0][1..];
+                    words.insert(0, &self.config.bot.command_prefix);
                 }
-                handle_command(&self, commands, &room, &event).await;
+                info!("Running command: {:?}", words);
+                handle_command(&self, words, &room, &event).await;
             }
         }
     }
 
     async fn on_stripped_state_member(
         &self,
-        room: SyncRoom,
+        room: Room,
         room_member: &StrippedStateEvent<MemberEventContent>,
         _: Option<MemberEventContent>,
     ) {
@@ -79,13 +88,21 @@ impl EventEmitter for MatrixListener {
             accept_invite(&self, room, &room_member).await;
         }
     }
+
+    async fn on_unrecognized_event(&self, _: Room, event: &serde_json::value::RawValue) {
+        info!("Received unrecognized event: {:?}", event);
+    }
+
+    async fn on_custom_event(&self, _: Room, event: &matrix_sdk::CustomEvent<'_>) {
+        info!("Received custom event: {:?}", event);
+    }
 }
 
 /// Handles incoming commands and dispatches relevant functions.
 async fn handle_command(
     listener: &MatrixListener,
     commands: Vec<&str>,
-    room: &Room,
+    room: &Joined,
     event: &SyncMessageEvent<MessageEventContent>,
 ) {
     if commands.len() < 2 {
@@ -94,7 +111,7 @@ async fn handle_command(
     let base_command = commands[1];
     let arguments = &commands[2..];
     match base_command {
-        "help" => command_help(&listener, arguments, &room, &event).await,
+        "help" => command_help(&room, &event).await,
         _ => command_unknown(&listener, &room, &event).await,
     }
 }
@@ -102,46 +119,41 @@ async fn handle_command(
 /// Fallback when an unrecognized command is invoked.
 async fn command_unknown(
     listener: &MatrixListener,
-    room: &Room,
+    room: &Joined,
     event: &SyncMessageEvent<MessageEventContent>,
 ) {
     send_reply(
         &format!("Unrecognized command, please try again or see {} help for available commands.", &listener.config.bot.command_prefix),
         &format!("Unrecognized command, please try again or see <code>{} help</code> for available commands.", &listener.config.bot.command_prefix),
-        &room.room_id,
+        room,
         event.event_id.clone(),
-        &listener.client,
     ).await;
 }
 
 /// Send help information.
-async fn command_help(
-    listener: &MatrixListener,
-    arguments: &[&str],
-    room: &Room,
-    event: &SyncMessageEvent<MessageEventContent>,
-) {
+async fn command_help(room: &Joined, event: &SyncMessageEvent<MessageEventContent>) {
+    let message = "There's nothing here yet";
+    send_reply(message, message, room, event.event_id.clone()).await;
 }
 
 /// Send `m.notice` reply to user.
-async fn send_reply(plain: &str, html: &str, room_id: &RoomId, event_id: EventId, client: &Client) {
-    let mut notice = NoticeMessageEventContent::html(plain, html);
+async fn send_reply(plain: &str, html: &str, room: &Joined, event_id: EventId) {
+    let mut notice = MessageEventContent::notice_html(plain, html);
     notice.relates_to = Some(Relation::Reply {
         in_reply_to: InReplyTo { event_id },
     });
-    let content = AnyMessageEventContent::RoomMessage(MessageEventContent::Notice(notice));
-    client.room_send(&room_id, content, None).await.unwrap();
+    let content = AnyMessageEventContent::RoomMessage(notice);
+    room.send(content, None).await.unwrap();
 }
 
 // Inspired by the AutoJoin example in matrix-rust-sdk
 /// Handles incoming invites.
 async fn accept_invite(
     listener: &MatrixListener,
-    room: SyncRoom,
+    room: Room,
     room_member: &StrippedStateEvent<MemberEventContent>,
 ) {
-    if let SyncRoom::Invited(room) = room {
-        let room = room.read().await;
+    if let Room::Invited(room) = room {
         if !listener
             .config
             .bot
@@ -151,25 +163,30 @@ async fn accept_invite(
         {
             info!(
                 "Unauthorized user {} tried to invite bot to {}",
-                &room_member.sender, &room.room_id
+                &room_member.sender,
+                &room.room_id()
             );
             return;
         }
-        debug!("Joining room: {}", room.room_id);
+        // Keep trying to join the room we've been invited with exponential backoff until an hour
+        // has passed.
+        debug!("Joining room: {}", room.room_id());
         let mut delay = 2;
-        while let Err(e) = listener.client.join_room_by_id(&room.room_id).await {
+        while let Err(e) = listener.client.join_room_by_id(&room.room_id()).await {
             warn!(
                 "Failed to join room: {} ({:?}), retrying in {}s",
-                room.room_id, e, delay
+                room.room_id(),
+                e,
+                delay
             );
 
-            delay_for(Duration::from_secs(delay)).await;
+            sleep(Duration::from_secs(delay)).await;
             delay *= 2;
             if delay > 3600 {
-                error!("Couldn't join room {} ({:?})", room.room_id, e);
+                error!("Couldn't join room {} ({:?})", room.room_id(), e);
                 break;
             }
         }
-        info!("Joined room: {}", room.room_id);
+        info!("Joined room: {}", room.room_id());
     }
 }

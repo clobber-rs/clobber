@@ -36,8 +36,7 @@ use matrix_sdk::SyncSettings;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
-use crate::config::Config;
-use crate::matrix::MatrixListener;
+use crate::{config::Config, matrix::MatrixListener};
 
 /// Name of the program, extracted from cargo environment variables.
 pub const PROGRAM_NAME: &str = env!("CARGO_PKG_NAME");
@@ -63,7 +62,7 @@ async fn main() -> Result<()> {
                 .help("Starts interactive login"),
         )
         .get_matches();
-    let mut client = if args.is_present("login") {
+    let client = if args.is_present("login") {
         // Login flag supplied, perform interactive login
         matrix::interactive_login().await?
     } else {
@@ -82,7 +81,7 @@ async fn main() -> Result<()> {
     client.sync_once(SyncSettings::default()).await?;
     let listener = MatrixListener::new(Config::read_config()?, client.clone());
 
-    client.add_event_emitter(Box::new(listener)).await;
+    client.set_event_handler(Box::new(listener)).await;
     let settings = SyncSettings::default().token(client.sync_token().await.unwrap());
     // Sync until the end of ~time~
     client.sync(settings).await;
