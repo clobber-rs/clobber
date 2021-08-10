@@ -3,7 +3,7 @@ name: CI
 on:
   push:
   pull_request:
-    branches: [master]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,6 +24,9 @@ jobs:
           components: rustfmt
           profile: minimal
           override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
 
       - name: Cargo fmt
         uses: actions-rs/cargo@v1
@@ -48,6 +51,9 @@ jobs:
           profile: minimal
           override: true
 
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
+
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
@@ -63,17 +69,17 @@ jobs:
       matrix:
         name:
           - linux / stable
-          - linux / beta
-          - macOS / stable
+          #- linux / beta
+          #- macOS / stable
 
         include:
           - name: linux / stable
 
-          - name: linux / beta
-            rust: beta
-
-          - name: macOS / stable
-            os: macOS-latest
+          #- name: linux / beta
+          #  rust: beta
+          #
+          #- name: macOS / stable
+          #  os: macOS-latest
 
     steps:
       - name: Checkout
@@ -86,6 +92,9 @@ jobs:
           target: ${{ matrix.target }}
           profile: minimal
           override: true
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
 
       - name: Build
         uses: actions-rs/cargo@v1
