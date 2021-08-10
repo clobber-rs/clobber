@@ -46,14 +46,9 @@ impl EventHandler for MatrixListener {
             };
             if msg_body
                 .trim_start()
-                .starts_with(&self.config.bot.command_prefix)
+                .starts_with("?clobber")
             {
-                let mut words: Vec<&str> = msg_body.split(' ').collect();
-                // Split prefix into separate word if 1 char long. don't judge ;-;
-                if self.config.bot.command_prefix.chars().count() == 1 {
-                    words[0] = &words[0][1..];
-                    words.insert(0, &self.config.bot.command_prefix);
-                }
+                let  words: Vec<&str> = msg_body.split(' ').collect();
                 info!("Running command: {:?}", words);
                 handle_command(&self, words, &room, &event).await;
             }
