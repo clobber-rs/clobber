@@ -2,8 +2,10 @@
 // Copyright (C) 2020 Emelie <em@nao.sh>
 // Licensed under the EUPL
 
+//! Configuration related functionality.
+
 use anyhow::Result;
-use matrix_sdk::identifiers::UserId;
+use matrix_sdk::ruma::UserId;
 use serde::{Deserialize, Serialize};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -40,7 +42,6 @@ pub fn get_data_dir() -> std::io::Result<PathBuf> {
         Path::new("data")
     };
     debug!("Using '{:?}' as data directory", &data_dir);
-    //let data_dir = dirs::data_dir().unwrap().join("clobber");
 
     if !data_dir.is_dir() {
         debug!("Creating data directory at {:?}", &data_dir);
@@ -54,7 +55,7 @@ pub fn get_data_dir() -> std::io::Result<PathBuf> {
     Ok(data_dir.to_path_buf())
 }
 
-/// Return the path to be used for reading the configurtion file
+/// Return the path to be used for reading the configuration file
 pub fn config_path() -> PathBuf {
     if Path::new("clobber.toml").is_file() {
         Path::new("clobber.toml")
@@ -95,7 +96,7 @@ pub struct HomeserverConfig {
 }
 
 /// Bot-related configuration.
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize)]
 pub struct BotConfig {
     /// Prefix used to invoke bot commands.
     pub command_prefix: String,

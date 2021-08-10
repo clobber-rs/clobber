@@ -2,20 +2,24 @@
 // Copyright (C) 2020 Emelie <em@nao.sh>
 // Licensed under the EUPL
 
+//! Bot functionality, command handling, etc.
+
 use async_trait::async_trait;
 use matrix_sdk::{
-    events::{
+    room::{Joined, Room},
+    ruma::events::{
         room::{
             member::{MemberEventContent, MembershipState},
-            message::{MessageEventContent, MessageType, Relation, TextMessageEventContent},
-            relationships::InReplyTo,
+            message::{
+                InReplyTo, MessageEventContent, MessageType, Relation, TextMessageEventContent,
+            },
         },
-        AnyMessageEventContent, StrippedStateEvent, SyncMessageEvent,
+        AnyMessageEventContent, StrippedStateEvent, SyncMessageEvent, SyncStateEvent,
     },
-    identifiers::EventId,
-    room::{Joined, Room},
-    Client, EventHandler,
+    ruma::EventId,
+    EventHandler,
 };
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use tokio::time::sleep;
@@ -23,6 +27,50 @@ use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 use crate::matrix::MatrixListener;
+
+/// Enum of available actions to apply to entity that matches rules.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum Action {
+    /// Ban the entity from the room.
+    Ban,
+}
+
+/// Enum of available rule list event types.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum List {
+    /// List of rules containing User IDs or globs.
+    #[serde(rename = "sh.nao.list.user")]
+    User {
+        /// The user(s) the rule applies to.
+        entity: String,
+        /// The action to take on successful match.
+        action: Action,
+        /// User-supplied reason for creating the rule.
+        reason: String,
+    },
+    /// List of rules containing server names or globs.
+    #[serde(rename = "sh.nao.list.server")]
+    Server {
+        /// The server(s) the rule applies to.
+        entity: String,
+        /// The action to take on successful match.
+        action: Action,
+        /// User-supplied reason for creating the rule.
+        reason: String,
+    },
+}
+
+impl List {
+    // TODO: Replace this with reading actual rule lists
+    /// Placeholder function
+    async fn mock_list() -> List {
+        List::User {
+            entity: String::from("@user:domain.tld"),
+            action: Action::Ban,
+            reason: String::from("COC Violation"),
+        }
+    }
+}
 
 #[async_trait]
 impl EventHandler for MatrixListener {
@@ -55,7 +103,7 @@ impl EventHandler for MatrixListener {
                     words.insert(0, &self.config.bot.command_prefix);
                 }
                 info!("Running command: {:?}", words);
-                handle_command(&self, words, &room, &event).await;
+                handle_command(self, words, &room, event).await;
             }
         }
     }
@@ -70,7 +118,23 @@ impl EventHandler for MatrixListener {
         if room_member.content.membership == MembershipState::Invite
             && room_member.state_key == self.client.user_id().await.unwrap()
         {
-            accept_invite(&self, room, &room_member).await;
+            accept_invite(self, room, room_member).await;
+        }
+    }
+
+    async fn on_room_member(&self, _room: Room, room_member: &SyncStateEvent<MemberEventContent>) {
+        // Check `invite`, `join` and `knock` states against rule lists and apply ban if there's a match
+        if room_member.content.membership == MembershipState::Invite
+            || room_member.content.membership == MembershipState::Join
+            || room_member.content.membership == MembershipState::Knock
+        {
+            let list = List::mock_list().await;
+            let entity = match list {
+                List::User { entity, .. } | List::Server { entity, .. } => entity,
+            };
+            if entity == room_member.state_key {
+                info!("Member event matched rule list");
+            }
         }
     }
 
@@ -94,10 +158,10 @@ async fn handle_command(
         return;
     }
     let base_command = commands[1];
-    let arguments = &commands[2..];
+    let _arguments = &commands[2..];
     match base_command {
-        "help" => command_help(&room, &event).await,
-        _ => command_unknown(&listener, &room, &event).await,
+        "help" => command_help(room, event).await,
+        _ => command_unknown(listener, room, event).await,
     }
 }
 
@@ -125,7 +189,7 @@ async fn command_help(room: &Joined, event: &SyncMessageEvent<MessageEventConten
 async fn send_reply(plain: &str, html: &str, room: &Joined, event_id: EventId) {
     let mut notice = MessageEventContent::notice_html(plain, html);
     notice.relates_to = Some(Relation::Reply {
-        in_reply_to: InReplyTo { event_id },
+        in_reply_to: InReplyTo::new(event_id),
     });
     let content = AnyMessageEventContent::RoomMessage(notice);
     room.send(content, None).await.unwrap();
@@ -157,7 +221,7 @@ async fn accept_invite(
         // has passed.
         debug!("Joining room: {}", room.room_id());
         let mut delay = 2;
-        while let Err(e) = listener.client.join_room_by_id(&room.room_id()).await {
+        while let Err(e) = listener.client.join_room_by_id(room.room_id()).await {
             warn!(
                 "Failed to join room: {} ({:?}), retrying in {}s",
                 room.room_id(),

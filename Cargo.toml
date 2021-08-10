@@ -25,6 +25,6 @@ async-trait = "0.1"
 
 [dependencies.matrix-sdk]
 git = "https://github.com/matrix-org/matrix-rust-sdk"
-rev = "382ec01"
+rev = "1fd1570"
 default_features = false
-features = ["encryption", "sled_cryptostore", "sled_state_store", "rustls-tls", "unstable-synapse-quirks"]
+features = ["encryption", "sled_cryptostore", "sled_state_store", "rustls-tls"]

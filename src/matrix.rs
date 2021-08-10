@@ -9,7 +9,7 @@ use crate::{
     PROGRAM_NAME, PROGRAM_VERSION,
 };
 use anyhow::Result;
-use matrix_sdk::{Client, ClientConfig, Session};
+use matrix_sdk::{reqwest, Client, ClientConfig, Session};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use std::io;
@@ -53,7 +53,10 @@ pub async fn interactive_login() -> Result<Client> {
     );
     // Interactively get login info from user
     let login = InteractiveLogin::from_stdin()?;
-    let client = Client::new_with_config(config.homeserver.url.as_str(), client_config()?)?;
+    let client = Client::new_with_config(
+        reqwest::Url::parse(config.homeserver.url.as_str())?,
+        client_config()?,
+    )?;
     let response = client
         .login(
             &login.username,
@@ -85,7 +88,10 @@ pub async fn login() -> Result<Client> {
     let client_config = client_config()?;
     let config = Config::read_config()?;
     let session = Session::load_session()?;
-    let client = Client::new_with_config(config.homeserver.url.as_str(), client_config)?;
+    let client = Client::new_with_config(
+        reqwest::Url::parse(config.homeserver.url.as_str())?,
+        client_config,
+    )?;
     debug!("Restoring login from session.");
     client.restore_login(session).await?;
     Ok(client)
