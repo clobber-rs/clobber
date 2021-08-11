@@ -2,6 +2,10 @@
 
 Moderation bot for matrix.
 
+## Usage
+
+Login interactively with `clobber --login` the first time the bot is started. If login is successful, the session is stored and the bot can subsequently be started by simply running `clobber`.
+
 ## Planned features
 
 - [x] Matrix & bot base
@@ -17,6 +21,7 @@ Moderation bot for matrix.
       - [ ] ACL management
       - [ ] Ban management
       - [ ] PL management
+      - [ ] Rule list management
   - [x] Command handling
     - [ ] kick
     - [ ] ban
@@ -37,6 +42,7 @@ Moderation bot for matrix.
 ## TODO
 
 - When management room is implemented, allow all members of room to invite the bot
+- Perform PL checking
 - Restructure configuration and initial login
 - Settle on consistent style for documentation
 - Refactor command handling, generate help text for commands automatically etc

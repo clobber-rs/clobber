@@ -15,8 +15,10 @@ use rand::Rng;
 use std::io;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
+use tracing_attributes::instrument;
 
 /// Struct containing info collected from user via interactive login, used for initial login.
+#[derive(Debug)]
 pub struct InteractiveLogin {
     /// Username
     pub username: String,
@@ -40,6 +42,7 @@ impl InteractiveLogin {
 }
 
 /// Perform initial login with interactive login information collected from user
+#[instrument]
 pub async fn interactive_login() -> Result<Client> {
     debug!("Starting interactive login flow");
     let config = Config::read_config()?;
@@ -85,6 +88,7 @@ pub async fn interactive_login() -> Result<Client> {
 }
 
 /// Restore login from saved session
+#[instrument]
 pub async fn login() -> Result<Client> {
     let client_config = client_config()?;
     let config = Config::read_config()?;
@@ -104,20 +108,4 @@ fn client_config() -> Result<ClientConfig> {
         .user_agent(&format!("{}/{}", PROGRAM_NAME, PROGRAM_VERSION))?
         .store_path(config::get_data_dir()?);
     Ok(client_config)
-}
-
-/// Listener struct for incoming matrix events
-pub struct Listener {
-    /// Instance of config::Config
-    pub config: Config,
-    /// Instance of matrix_sdk::Client
-    pub client: Client,
-}
-
-impl Listener {
-    /// Constructor for Listener
-    #[must_use]
-    pub const fn new(config: Config, client: Client) -> Self {
-        Self { config, client }
-    }
 }

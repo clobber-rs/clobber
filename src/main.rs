@@ -9,9 +9,9 @@
 
 #![forbid(unsafe_code)]
 #![deny(clippy::all)]
-#![warn(missing_docs)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::nursery)]
+#![warn(missing_docs, missing_debug_implementations)]
 #![warn(clippy::missing_docs_in_private_items)]
 #![allow(clippy::missing_errors_doc)]
 
