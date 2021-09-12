@@ -92,17 +92,15 @@ jobs:
         env:
           CONDUIT_SERVER_NAME: localhost:6167
           CONDUIT_ALLOW_REGISTRATION: true
-          CONDUIT_TRUSTED_SERVERS: '["matrix.org"]'
           CONDUIT_ADDRESS: 0.0.0.0
           CONDUIT_PORT: 6167
-          CONDUIT_CONFIG: ''  
+          CONDUIT_CONFIG: "" 
           CONDUIT_LOG: warn
-          CONDUIT_ALLOW_JAEGER: 'false'
-          CONDUIT_ALLOW_ENCRYPTION: 'true'
-          CONDUIT_ALLOW_FEDERATION: 'false'
+          CONDUIT_ALLOW_JAEGER: false
+          CONDUIT_ALLOW_FEDERATION: false
           CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
           CONDUIT_WORKERS: 10
-          CONDUIT_MAX_REQUEST_SIZE: 20_000_000  # in bytes, ~20 MB
+          CONDUIT_MAX_REQUEST_SIZE: 20_000_000
 
     steps:
       - name: Checkout
