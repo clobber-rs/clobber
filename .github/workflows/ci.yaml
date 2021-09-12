@@ -89,12 +89,9 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
-          - $GITHUB_WORKSPACE/.github/conduit.toml:/srv/conduit/conduit.toml
+          - ${{ github.workspace }}/.github/conduit.toml:/srv/conduit/conduit.toml
         env:
           CONDUIT_CONFIG: /srv/conduit/conduit.toml
-    steps:
-      - name: Place empty conduit config
-        run: echo "[global]" > /home/runner/conduit.toml
 
       - name: Checkout
         uses: actions/checkout@v1
