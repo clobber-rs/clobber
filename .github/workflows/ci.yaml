@@ -49,13 +49,13 @@ jobs:
       - name: Get docker logs
         run: |
           docker logs "${{ job.services.conduit.id }}"
-          ls ${{ github.workspace }}
+          ls -al ${{ github.workspace }}
           cat ${{ github.workspace }}/ci/conduit.toml
         if: ${{ always() }}
 
 
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: Install rust
         uses: actions-rs/toolchain@v1
