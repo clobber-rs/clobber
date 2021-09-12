@@ -92,7 +92,11 @@ jobs:
           - ${{ github.workspace }}/ci/conduit.toml:/srv/conduit/conduit.toml
         env:
           CONDUIT_CONFIG: /srv/conduit/conduit.toml
+        options: >-
+          --no-healthcheck
     steps:
+      - name: Get docker logs
+        run: docker logs "${{ job.services.conduit.id }}"
 
       - name: Checkout
         uses: actions/checkout@v1
