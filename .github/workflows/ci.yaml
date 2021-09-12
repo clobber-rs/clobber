@@ -93,7 +93,7 @@ jobs:
         env:
           CONDUIT_CONFIG: /srv/conduit/conduit.toml
         options: >-
-          --no-healthcheck
+          --health-cmd "true"
     steps:
       - name: Get docker logs
         run: docker logs "${{ job.services.conduit.id }}"
