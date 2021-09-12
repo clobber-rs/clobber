@@ -89,12 +89,13 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
+          - ./conduit.toml:/srv/conduit/conduit.toml
         env:
           CONDUIT_SERVER_NAME: localhost:6167
           CONDUIT_ALLOW_REGISTRATION: true
           CONDUIT_ADDRESS: 0.0.0.0
           CONDUIT_PORT: 6167
-          CONDUIT_CONFIG: ''''''
+          CONDUIT_CONFIG: /srv/conduit/conduit.toml
           CONDUIT_LOG: warn
           CONDUIT_ALLOW_JAEGER: false
           CONDUIT_ALLOW_FEDERATION: false
@@ -103,6 +104,9 @@ jobs:
           CONDUIT_MAX_REQUEST_SIZE: 20_000_000
 
     steps:
+      - name: Place empty conduit config
+        run: echo "[global]" > ./conduit.toml
+
       - name: Checkout
         uses: actions/checkout@v1
 
