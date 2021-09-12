@@ -89,9 +89,10 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
-          - ci/conduit.toml:/srv/conduit/conduit.toml
+          - ${{ github.workspace }}ci/conduit.toml:/srv/conduit/conduit.toml
         env:
           CONDUIT_CONFIG: /srv/conduit/conduit.toml
+    steps:
 
       - name: Checkout
         uses: actions/checkout@v1
