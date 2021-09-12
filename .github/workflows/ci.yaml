@@ -89,20 +89,9 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
-          - /home/runner/conduit.toml:/srv/conduit/conduit.toml
+          - $GITHUB_WORKSPACE/.github/conduit.toml:/srv/conduit/conduit.toml
         env:
-          CONDUIT_SERVER_NAME: localhost:6167
-          CONDUIT_ALLOW_REGISTRATION: true
-          CONDUIT_ADDRESS: 0.0.0.0
-          CONDUIT_PORT: 6167
           CONDUIT_CONFIG: /srv/conduit/conduit.toml
-          CONDUIT_LOG: warn
-          CONDUIT_ALLOW_JAEGER: false
-          CONDUIT_ALLOW_FEDERATION: false
-          CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
-          CONDUIT_WORKERS: 10
-          CONDUIT_MAX_REQUEST_SIZE: 20_000_000
-
     steps:
       - name: Place empty conduit config
         run: echo "[global]" > /home/runner/conduit.toml
