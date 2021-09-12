@@ -89,7 +89,7 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
-          - ./conduit.toml:/srv/conduit/conduit.toml
+          - /home/runner/conduit.toml:/srv/conduit/conduit.toml
         env:
           CONDUIT_SERVER_NAME: localhost:6167
           CONDUIT_ALLOW_REGISTRATION: true
@@ -105,7 +105,7 @@ jobs:
 
     steps:
       - name: Place empty conduit config
-        run: echo "[global]" > ./conduit.toml
+        run: echo "[global]" > /home/runner/conduit.toml
 
       - name: Checkout
         uses: actions/checkout@v1
