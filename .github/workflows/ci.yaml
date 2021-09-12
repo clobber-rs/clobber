@@ -94,7 +94,7 @@ jobs:
           CONDUIT_ALLOW_REGISTRATION: true
           CONDUIT_ADDRESS: 0.0.0.0
           CONDUIT_PORT: 6167
-          CONDUIT_CONFIG: ''''
+          CONDUIT_CONFIG: ''''''''
           CONDUIT_LOG: warn
           CONDUIT_ALLOW_JAEGER: false
           CONDUIT_ALLOW_FEDERATION: false
