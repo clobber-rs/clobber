@@ -97,6 +97,8 @@ jobs:
     steps:
       - name: Get docker logs
         run: docker logs "${{ job.services.conduit.id }}"
+        if: ${{ always() }}
+
 
       - name: Checkout
         uses: actions/checkout@v1
