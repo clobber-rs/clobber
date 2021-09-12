@@ -26,7 +26,7 @@ use tokio::time::sleep;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
-use crate::matrix::MatrixListener;
+use crate::matrix::Listener;
 
 /// Enum of available actions to apply to entity that matches rules.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -63,8 +63,8 @@ pub enum List {
 impl List {
     // TODO: Replace this with reading actual rule lists
     /// Placeholder function
-    async fn mock_list() -> List {
-        List::User {
+    async fn mock_list() -> Self {
+        Self::User {
             entity: String::from("@user:domain.tld"),
             action: Action::Ban,
             reason: String::from("COC Violation"),
@@ -73,7 +73,7 @@ impl List {
 }
 
 #[async_trait]
-impl EventHandler for MatrixListener {
+impl EventHandler for Listener {
     async fn on_room_message(&self, room: Room, event: &SyncMessageEvent<MessageEventContent>) {
         if let Room::Joined(room) = room {
             // Match on m.text messages and get the message body
@@ -149,7 +149,7 @@ impl EventHandler for MatrixListener {
 
 /// Handles incoming commands and dispatches relevant functions.
 async fn handle_command(
-    listener: &MatrixListener,
+    listener: &Listener,
     commands: Vec<&str>,
     room: &Joined,
     event: &SyncMessageEvent<MessageEventContent>,
@@ -167,7 +167,7 @@ async fn handle_command(
 
 /// Fallback when an unrecognized command is invoked.
 async fn command_unknown(
-    listener: &MatrixListener,
+    listener: &Listener,
     room: &Joined,
     event: &SyncMessageEvent<MessageEventContent>,
 ) {
@@ -198,7 +198,7 @@ async fn send_reply(plain: &str, html: &str, room: &Joined, event_id: EventId) {
 // Inspired by the AutoJoin example in matrix-rust-sdk
 /// Handles incoming invites.
 async fn accept_invite(
-    listener: &MatrixListener,
+    listener: &Listener,
     room: Room,
     room_member: &StrippedStateEvent<MemberEventContent>,
 ) {

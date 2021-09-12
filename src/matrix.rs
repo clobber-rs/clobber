@@ -97,7 +97,7 @@ pub async fn login() -> Result<Client> {
     Ok(client)
 }
 
-/// Construct matrix_sdk ClientConfig
+/// Construct `matrix_sdk` `ClientConfig`
 fn client_config() -> Result<ClientConfig> {
     let client_config = ClientConfig::new()
         .user_agent(&format!("{}/{}", PROGRAM_NAME, PROGRAM_VERSION))?
@@ -106,16 +106,17 @@ fn client_config() -> Result<ClientConfig> {
 }
 
 /// Listener struct for incoming matrix events
-pub struct MatrixListener {
+pub struct Listener {
     /// Instance of config::Config
     pub config: Config,
     /// Instance of matrix_sdk::Client
     pub client: Client,
 }
 
-impl MatrixListener {
-    /// Constructor for MatrixListener
-    pub fn new(config: Config, client: Client) -> Self {
+impl Listener {
+    /// Constructor for Listener
+    #[must_use]
+    pub const fn new(config: Config, client: Client) -> Self {
         Self { config, client }
     }
 }

@@ -17,9 +17,9 @@ use tracing::{debug, error, info, warn};
 #[derive(Deserialize, Serialize)]
 pub struct Config {
     /// Homeserver-related configuration.
-    pub homeserver: HomeserverConfig,
+    pub homeserver: Homeserver,
     /// Bot-related configuration.
-    pub bot: BotConfig,
+    pub bot: Bot,
 }
 
 impl Config {
@@ -56,7 +56,8 @@ pub fn get_data_dir() -> std::io::Result<PathBuf> {
 }
 
 /// Return the path to be used for reading the configuration file
-pub fn config_path() -> PathBuf {
+#[must_use]
+fn config_path() -> PathBuf {
     if Path::new("clobber.toml").is_file() {
         Path::new("clobber.toml")
     } else if Path::new("/etc/clobber/clobber.toml").is_file() {
@@ -67,7 +68,7 @@ pub fn config_path() -> PathBuf {
     .to_path_buf()
 }
 
-/// Extension trait for matrix_sdk::Session. Provides convenience functions for loading and saving sessions.
+/// Extension trait for `matrix_sdk::Session`. Provides convenience functions for loading and saving sessions.
 pub trait SessionExt: Sized {
     /// Load session from file.
     fn load_session() -> Result<Self>;
@@ -90,14 +91,14 @@ impl SessionExt for matrix_sdk::Session {
 
 /// Homeserver-related configuration.
 #[derive(Deserialize, Serialize, Default)]
-pub struct HomeserverConfig {
+pub struct Homeserver {
     /// Homeserver URL
     pub url: String,
 }
 
 /// Bot-related configuration.
 #[derive(Deserialize, Serialize)]
-pub struct BotConfig {
+pub struct Bot {
     /// Prefix used to invoke bot commands.
     pub command_prefix: String,
     /// Collection of users the bot will accept invites from.

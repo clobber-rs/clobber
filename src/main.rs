@@ -8,8 +8,12 @@
 //!
 
 #![forbid(unsafe_code)]
+#![deny(clippy::all)]
 #![warn(missing_docs)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
 #![warn(clippy::missing_docs_in_private_items)]
+#![allow(clippy::missing_errors_doc)]
 
 pub mod bot;
 pub mod config;
@@ -24,7 +28,7 @@ use matrix_sdk::SyncSettings;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
-use crate::{config::Config, matrix::MatrixListener};
+use crate::{config::Config, matrix::Listener};
 
 /// Name of the program, extracted from cargo environment variables.
 pub const PROGRAM_NAME: &str = env!("CARGO_PKG_NAME");
@@ -67,7 +71,7 @@ async fn main() -> Result<()> {
         }
     };
     client.sync_once(SyncSettings::default()).await?;
-    let listener = MatrixListener::new(Config::read_config()?, client.clone());
+    let listener = Listener::new(Config::read_config()?, client.clone());
 
     client.set_event_handler(Box::new(listener)).await;
     let settings = SyncSettings::default().token(client.sync_token().await.unwrap());
