@@ -89,7 +89,7 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
-          - ${{ github.workspace }}/.github/conduit.toml:/srv/conduit/conduit.toml
+          - ci/conduit.toml:/srv/conduit/conduit.toml
         env:
           CONDUIT_CONFIG: /srv/conduit/conduit.toml
 
