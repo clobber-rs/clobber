@@ -80,6 +80,18 @@ jobs:
           #
           #- name: macOS / stable
           #  os: macOS-latest
+    
+    services:
+      conduit:
+        image: matrixconduit/matrix-conduit:latest
+        ports:
+          - 6167:6167
+        volumes:
+          db:/srv/conduit/.local/share/conduit
+        env:
+          CONDUIT_SERVER_NAME: localhost:6167
+          CONDUIT_ALLOW_REGISTRATION: true
+          CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
 
     steps:
       - name: Checkout

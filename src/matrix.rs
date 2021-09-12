@@ -49,6 +49,7 @@ pub async fn interactive_login() -> Result<Client> {
         &rand::thread_rng()
             .sample_iter(Alphanumeric)
             .take(6)
+            .map(char::from)
             .collect::<String>(),
     );
     // Interactively get login info from user
