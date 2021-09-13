@@ -40,17 +40,20 @@ jobs:
           - 6167:6167
         volumes:
           - db:/srv/conduit/.local/share/conduit
-          - ${{ github.workspace }}/ci/conduit.toml:/srv/conduit/conduit.toml
         env:
-          CONDUIT_CONFIG: /srv/conduit/conduit.toml
+          CONDUIT_SERVER_NAME: localhost:6167
+          CONDUIT_ALLOW_REGISTRATION: true
+          CONDUIT_ADDRESS: 0.0.0.0
+          CONDUIT_PORT: 6167
+          CONDUIT_LOG: warn
+          CONDUIT_ALLOW_FEDERATION: false
+          CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
         options: >-
-          --health-cmd "true"
+          -e "CONDUIT_CONFIG=''"
     steps:
       - name: Get docker logs
         run: |
           docker logs "${{ job.services.conduit.id }}"
-          ls -al ${{ github.workspace }}
-          cat ${{ github.workspace }}/ci/conduit.toml
         if: ${{ always() }}
 
 
