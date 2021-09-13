@@ -1,5 +1,5 @@
 // Clobber - a matrix moderation bot
-// Copyright (C) 2020 Emelie <em@nao.sh>
+// Copyright (C) 2020 Emelie Graven <em@nao.sh>
 // Licensed under the EUPL
 
 //! Configuration related functionality.
@@ -14,7 +14,7 @@ use std::{fs, path::Path};
 use tracing::{debug, error, info, warn};
 
 /// Top-level configuration struct.
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     /// Homeserver-related configuration.
     pub homeserver: Homeserver,
@@ -90,14 +90,14 @@ impl SessionExt for matrix_sdk::Session {
 }
 
 /// Homeserver-related configuration.
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct Homeserver {
     /// Homeserver URL
     pub url: String,
 }
 
 /// Bot-related configuration.
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Bot {
     /// Prefix used to invoke bot commands.
     pub command_prefix: String,

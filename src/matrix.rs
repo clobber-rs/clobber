@@ -1,5 +1,5 @@
 // Clobber - a matrix moderation bot
-// Copyright (C) 2020 Emelie <em@nao.sh>
+// Copyright (C) 2020 Emelie Graven <em@nao.sh>
 // Licensed under the EUPL
 
 //! Matrix-related functionality.
@@ -104,20 +104,4 @@ fn client_config() -> Result<ClientConfig> {
         .user_agent(&format!("{}/{}", PROGRAM_NAME, PROGRAM_VERSION))?
         .store_path(config::get_data_dir()?);
     Ok(client_config)
-}
-
-/// Listener struct for incoming matrix events
-pub struct Listener {
-    /// Instance of config::Config
-    pub config: Config,
-    /// Instance of matrix_sdk::Client
-    pub client: Client,
-}
-
-impl Listener {
-    /// Constructor for Listener
-    #[must_use]
-    pub const fn new(config: Config, client: Client) -> Self {
-        Self { config, client }
-    }
 }

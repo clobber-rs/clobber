@@ -1,3 +1,7 @@
+// Clobber - a matrix moderation bot
+// Copyright (C) 2020 Emelie Graven <em@nao.sh>
+// Licensed under the EUPL
+
 use std::convert::TryFrom;
 
 use matrix_sdk::reqwest::Url;
