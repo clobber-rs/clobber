@@ -4,7 +4,7 @@ use matrix_sdk::reqwest::Url;
 use matrix_sdk::ruma::api::client::r0::account::register::Request as RegistrationRequest;
 use matrix_sdk::ruma::api::client::r0::uiaa::AuthData;
 use matrix_sdk::ruma::assign;
-use matrix_sdk::Client;
+use matrix_sdk::{Client, SyncSettings};
 use tokio::sync::OnceCell;
 static CLIENT: OnceCell<Client> = OnceCell::const_new();
 
@@ -21,10 +21,10 @@ pub async fn get_client() -> Client {
             let uiaa = match client.register(request.clone()).await {
                 Err(e) => match e.uiaa_response().cloned() {
                     Some(uiaa) => uiaa,
-                    None => return Err(anyhow::anyhow!("Missing UIAA response")),
+                    None => panic!("Missing UIAA response"),
                 },
                 Ok(_) => {
-                    return Err(anyhow::anyhow!("Missing UIAA response"));
+                    panic!("Missing UIAA response")
                 }
             };
             // Get the first step in the authentication flow (we're ignoring the rest)
@@ -36,8 +36,8 @@ pub async fn get_client() -> Client {
                 session: uiaa.session.as_deref(),
                 auth_parameters: Default::default(),
             });
-            let response = client.register(request).await?;
-            client.sync_once(SyncSettings::new()).await?;
+            client.register(request).await.unwrap();
+            client.sync_once(SyncSettings::new()).await.unwrap();
             client
         })
         .await
