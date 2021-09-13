@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -80,10 +81,30 @@ jobs:
           #
           #- name: macOS / stable
           #  os: macOS-latest
-
+    
+    services:
+      conduit:
+        image: matrixconduit/matrix-conduit:latest
+        ports:
+          - 6167:6167
+        volumes:
+          - db:/srv/conduit/.local/share/conduit
+        env:
+          CONDUIT_SERVER_NAME: localhost:6167
+          CONDUIT_ALLOW_REGISTRATION: true
+          CONDUIT_ADDRESS: 0.0.0.0
+          CONDUIT_PORT: 6167
+          CONDUIT_LOG: warn
+          CONDUIT_ALLOW_FEDERATION: false
+          CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
+        # Workaround to set CONDUIT_CONFIG to an empty string
+        options: >-
+          -e "CONDUIT_CONFIG=''"
     steps:
+
+
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: Install rust
         uses: actions-rs/toolchain@v1
