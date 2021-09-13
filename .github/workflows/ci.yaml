@@ -63,7 +63,7 @@ jobs:
 
   test:
     name: ${{ matrix.name }}
-    #needs: [clippy]
+    needs: [clippy]
 
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     strategy:
@@ -97,6 +97,7 @@ jobs:
           CONDUIT_LOG: warn
           CONDUIT_ALLOW_FEDERATION: false
           CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
+        # Workaround to set CONDUIT_CONFIG to an empty string
         options: >-
           -e "CONDUIT_CONFIG=''"
     steps:
