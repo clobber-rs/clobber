@@ -1,8 +1,12 @@
+// Clobber - a matrix moderation bot
+// Copyright (C) 2020 Emelie Graven <em@nao.sh>
+// Licensed under the EUPL
+
 use std::convert::TryFrom;
 
 use matrix_sdk::reqwest::Url;
 use matrix_sdk::ruma::api::client::r0::account::register::Request as RegistrationRequest;
-use matrix_sdk::ruma::api::client::r0::uiaa::AuthData;
+use matrix_sdk::ruma::api::client::r0::uiaa::{AuthData, Dummy};
 use matrix_sdk::ruma::assign;
 use matrix_sdk::{Client, Session, SyncSettings};
 use tokio::sync::OnceCell;
@@ -31,15 +35,11 @@ pub async fn get_client() -> Client {
                     panic!("Missing UIAA response 2")
                 }
             };
-            // Get the first step in the authentication flow (we're ignoring the rest)
-            let stages = uiaa.flows.get(0);
-            let kind = stages.and_then(|flow| flow.stages.get(0)).cloned();
-            // Set authentication data, fallback to password type
-            request.auth = Some(AuthData::DirectRequest {
-                kind: kind.as_deref().unwrap_or("m.login.dummy"),
-                session: uiaa.session.as_deref(),
-                auth_parameters: Default::default(),
+            // Set authentication data, m.login.dummy
+            let dummy = assign!(Dummy::new(), {
+                session: uiaa.session.as_deref()
             });
+            request.auth = Some(AuthData::Dummy(dummy));
             let response = client.register(request).await.unwrap();
             let session = Session {
                 access_token: response.access_token.unwrap(),
