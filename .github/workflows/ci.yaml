@@ -49,12 +49,9 @@ jobs:
           CONDUIT_ALLOW_FEDERATION: false
           CONDUIT_DATABASE_PATH: /srv/conduit/.local/share/conduit
         options: >-
+          # Workaround to be able to set an env var to an empty string in GH actions
           -e "CONDUIT_CONFIG=''"
     steps:
-      - name: Get docker logs
-        run: |
-          docker logs "${{ job.services.conduit.id }}"
-        if: ${{ always() }}
 
 
       - name: Checkout
