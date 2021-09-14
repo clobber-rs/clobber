@@ -8,8 +8,11 @@ use anyhow::{anyhow, Error};
 use globset::Glob;
 use matrix_sdk::{
     room::{Joined, Room},
-    ruma::EventId,
-    ruma::{events::AnySyncStateEvent, RoomId},
+    ruma::{
+        api::client::r0::state::send_state_event::Request,
+        events::{AnySyncStateEvent, EventContent},
+        RoomId,
+    },
     ruma::{
         events::{
             macros::EventContent,
@@ -24,6 +27,7 @@ use matrix_sdk::{
         },
         int, UserId,
     },
+    ruma::{serde::Raw, EventId},
     Client,
 };
 use serde::{Deserialize, Serialize};
@@ -49,7 +53,7 @@ pub enum Action {
     Mute,
 }
 
-/// Custom `EventContent` type for `sh.nao.clibber.rule.user` events.
+/// Custom `EventContent` type for `sh.nao.clobber.rule.user` events.
 #[derive(Clone, Serialize, Deserialize, Debug, EventContent)]
 #[ruma_event(type = "sh.nao.clobber.rule.user", kind = State)]
 pub struct UserRuleEventContent {
@@ -62,7 +66,7 @@ pub struct UserRuleEventContent {
     reason: Option<String>,
 }
 
-/// Custom `EventContent` type for `sh.nao.clibber.rule.server` events.
+/// Custom `EventContent` type for `sh.nao.clobber.rule.server` events.
 #[derive(Clone, Serialize, Deserialize, Debug, EventContent)]
 #[ruma_event(type = "sh.nao.clobber.rule.server", kind = State)]
 pub struct ServerRuleEventContent {
@@ -153,9 +157,10 @@ async fn handle_command(
         return Ok(());
     }
     let base_command = commands[1];
-    let _arguments = &commands[2..];
+    let arguments = &commands[2..];
     match base_command {
         "help" => command_help(event, room).await?,
+        "ban" => command_ban(event, room, config, arguments.to_vec()).await?,
         _ => command_unknown(event, room, config).await?,
     }
     Ok(())
@@ -185,6 +190,19 @@ async fn command_help(
 ) -> Result<(), anyhow::Error> {
     let message = "There's nothing here yet";
     send_reply(message, message, room, event.event_id.clone()).await?;
+    Ok(())
+}
+
+/// Ban a user.
+#[instrument]
+async fn command_ban(
+    event: &SyncMessageEvent<MessageEventContent>,
+    room: &Joined,
+    config: &Config,
+    args: Vec<&str>,
+) -> Result<(), anyhow::Error> {
+    // TODO: Iterate over protected rooms and ban matching targets, handle arguments and set
+    // appropriate rule
     Ok(())
 }
 
@@ -405,6 +423,56 @@ async fn get_server_rules(
         events.extend(events_inner);
     }
     Ok(events)
+}
+
+/// Constructs a `sh.nao.clobber.rule.user` state event and sends it to the appropriate room.
+#[instrument]
+async fn set_user_rule(
+    client: &Client,
+    rule_list: &Joined,
+    entity: &str,
+    action: Action,
+    reason: Option<String>,
+) -> Result<(), anyhow::Error> {
+    let rule = UserRuleEventContent {
+        entity: entity.to_string(),
+        action,
+        reason,
+    };
+    let raw_rule = serde_json::value::to_raw_value(&rule)?;
+    let request = Request::new_raw(
+        rule_list.room_id(),
+        rule.event_type(),
+        entity,
+        Raw::from_json(raw_rule),
+    );
+    client.send(request, None).await?;
+    Ok(())
+}
+
+/// Constructs a `sh.nao.clobber.rule.user` state event and sends it to the appropriate room.
+#[instrument]
+async fn set_server_rule(
+    client: &Client,
+    rule_list: &Joined,
+    entity: &str,
+    action: Action,
+    reason: Option<String>,
+) -> Result<(), anyhow::Error> {
+    let rule = ServerRuleEventContent {
+        entity: entity.to_string(),
+        action,
+        reason,
+    };
+    let raw_rule = serde_json::to_string(&rule)?;
+    let request = Request::new_raw(
+        rule_list.room_id(),
+        rule.event_type(),
+        entity,
+        serde_json::from_str::<Raw<AnyStateEventContent>>(&raw_rule)?,
+    );
+    client.send(request, None).await?;
+    Ok(())
 }
 
 /// Checks a `UserId` against a user rule and returns true if it matches.

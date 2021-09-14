@@ -18,7 +18,6 @@ tracing-subscriber = { version = "0.2", features = ["parking_lot"] }
 rpassword = "5.0"
 rand = "0.8"
 clap = "2.33"
-async-trait = "0.1"
 tracing-attributes = "0.1.15"
 serde_with = "1.9.4"
 globset = "0.4.8"
@@ -28,7 +27,3 @@ globset = "0.4.8"
 version = "0.4"
 default_features = false
 features = ["encryption", "sled_cryptostore", "sled_state_store", "rustls-tls"]
-
-[dependencies.matrix-sdk-test]
-git = "https://github.com/matrix-org/matrix-rust-sdk"
-rev = "4d57681"
