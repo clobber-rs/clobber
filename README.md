@@ -1,6 +1,6 @@
 # Clobber
 
-Moderation bot for matrix.
+Moderation bot for matrix. Heavily inspired by [mjolnir](https://github.com/matrix-org/mjolnir), but not a drop-in replacement. This might change in the future in case this is ever stable enough.
 
 ## Usage
 

@@ -15,11 +15,10 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![allow(clippy::missing_errors_doc)]
 
-use anyhow::Result;
 use clobber::init;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     crate::init().await?;
     Ok(())
 }

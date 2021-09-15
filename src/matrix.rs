@@ -8,7 +8,6 @@ use crate::{
     config::{self, Config, SessionExt},
     PROGRAM_NAME, PROGRAM_VERSION,
 };
-use anyhow::Result;
 use matrix_sdk::{reqwest, Client, ClientConfig, Session};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -28,7 +27,7 @@ pub struct InteractiveLogin {
 
 impl InteractiveLogin {
     /// Interactively collects login information from user via stdin
-    pub fn from_stdin() -> Result<Self> {
+    pub fn from_stdin() -> anyhow::Result<Self> {
         println!("Enter username: ");
         let mut username = String::new();
         io::stdin().read_line(&mut username)?;
@@ -43,7 +42,7 @@ impl InteractiveLogin {
 
 /// Perform initial login with interactive login information collected from user
 #[instrument]
-pub async fn interactive_login() -> Result<Client> {
+pub async fn interactive_login() -> anyhow::Result<Client> {
     debug!("Starting interactive login flow");
     let config = Config::read_config()?;
     // Set device display name to randomized string. Example: "Clobber_vzN2gq"
@@ -89,7 +88,7 @@ pub async fn interactive_login() -> Result<Client> {
 
 /// Restore login from saved session
 #[instrument]
-pub async fn login() -> Result<Client> {
+pub async fn login() -> anyhow::Result<Client> {
     let client_config = client_config()?;
     let config = Config::read_config()?;
     let session = Session::load_session()?;
@@ -103,7 +102,7 @@ pub async fn login() -> Result<Client> {
 }
 
 /// Construct `matrix_sdk` `ClientConfig`
-fn client_config() -> Result<ClientConfig> {
+fn client_config() -> anyhow::Result<ClientConfig> {
     let client_config = ClientConfig::new()
         .user_agent(&format!("{}/{}", PROGRAM_NAME, PROGRAM_VERSION))?
         .store_path(config::get_data_dir()?);

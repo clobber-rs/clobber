@@ -2,9 +2,9 @@
 // Copyright (C) 2020 Emelie <em@nao.sh>
 // Licensed under the EUPL
 
-//! Bot functionality, command handling, etc.
+//! Bot functionality.
 
-use anyhow::{anyhow, Error};
+use anyhow::anyhow;
 use globset::Glob;
 use matrix_sdk::{
     room::{Joined, Room},
@@ -40,7 +40,16 @@ use tracing_attributes::instrument;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
 
-use crate::config::Config;
+use crate::{command, config::Config};
+
+/// Struct for rule lists
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RuleList {
+    /// List shortcode
+    shortcode: String,
+    /// Room ID or alias
+    room: RoomId,
+}
 
 /// Enum of available actions to apply to entity that matches rules.
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize)]
@@ -53,23 +62,10 @@ pub enum Action {
     Mute,
 }
 
-/// Custom `EventContent` type for `sh.nao.clobber.rule.user` events.
+/// Custom `EventContent` type for `sh.nao.clobber.rule` events.
 #[derive(Clone, Serialize, Deserialize, Debug, EventContent)]
-#[ruma_event(type = "sh.nao.clobber.rule.user", kind = State)]
-pub struct UserRuleEventContent {
-    /// The user(s) the rule applies to.
-    entity: String,
-    /// The action to take on successful match.
-    action: Action,
-    /// User-supplied reason for creating the rule.
-    #[serde(with = "string_empty_as_none")]
-    reason: Option<String>,
-}
-
-/// Custom `EventContent` type for `sh.nao.clobber.rule.server` events.
-#[derive(Clone, Serialize, Deserialize, Debug, EventContent)]
-#[ruma_event(type = "sh.nao.clobber.rule.server", kind = State)]
-pub struct ServerRuleEventContent {
+#[ruma_event(type = "sh.nao.clobber.rule", kind = State)]
+pub struct RuleEventContent {
     /// The user(s) the rule applies to.
     entity: String,
     /// The action to take on successful match.
@@ -114,7 +110,9 @@ pub async fn on_room_message(
                 words.insert(0, &config.bot.command_prefix);
             }
             info!("Running command: {:?}", words);
-            handle_command(&event, &room, words, &config).await.unwrap();
+            command::handle_command(&event, &room, &client, words, &config)
+                .await
+                .unwrap();
         }
     }
 }
@@ -144,75 +142,13 @@ pub async fn on_room_member(event: SyncStateEvent<MemberEventContent>, room: Roo
     };
 }
 
-/// Handles incoming commands and dispatches relevant functions.
-#[instrument]
-async fn handle_command(
-    event: &SyncMessageEvent<MessageEventContent>,
-    room: &Joined,
-    commands: Vec<&str>,
-    config: &Config,
-) -> Result<(), anyhow::Error> {
-    if commands.len() < 2 {
-        command_help(event, room).await?;
-        return Ok(());
-    }
-    let base_command = commands[1];
-    let arguments = &commands[2..];
-    match base_command {
-        "help" => command_help(event, room).await?,
-        "ban" => command_ban(event, room, config, arguments.to_vec()).await?,
-        _ => command_unknown(event, room, config).await?,
-    }
-    Ok(())
-}
-
-/// Fallback when an unrecognized command is invoked.
-#[instrument]
-async fn command_unknown(
-    event: &SyncMessageEvent<MessageEventContent>,
-    room: &Joined,
-    config: &Config,
-) -> Result<(), anyhow::Error> {
-    send_reply(
-        &format!("Unrecognized command, please try again or see {} help for available commands.", &config.bot.command_prefix),
-        &format!("Unrecognized command, please try again or see <code>{} help</code> for available commands.", &config.bot.command_prefix),
-        room,
-        event.event_id.clone(),
-    ).await?;
-    Ok(())
-}
-
-/// Send help information.
-#[instrument]
-async fn command_help(
-    event: &SyncMessageEvent<MessageEventContent>,
-    room: &Joined,
-) -> Result<(), anyhow::Error> {
-    let message = "There's nothing here yet";
-    send_reply(message, message, room, event.event_id.clone()).await?;
-    Ok(())
-}
-
-/// Ban a user.
-#[instrument]
-async fn command_ban(
-    event: &SyncMessageEvent<MessageEventContent>,
-    room: &Joined,
-    config: &Config,
-    args: Vec<&str>,
-) -> Result<(), anyhow::Error> {
-    // TODO: Iterate over protected rooms and ban matching targets, handle arguments and set
-    // appropriate rule
-    Ok(())
-}
-
 /// Send `m.notice` reply to user.
-async fn send_reply(
+pub async fn send_reply(
     plain: &str,
     html: &str,
     room: &Joined,
     event_id: EventId,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
     let mut notice = MessageEventContent::notice_html(plain, html);
     notice.relates_to = Some(Relation::Reply {
         in_reply_to: InReplyTo::new(event_id),
@@ -230,7 +166,7 @@ async fn accept_invite(
     room: &Room,
     client: &Client,
     config: &Config,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
     if let Room::Invited(room) = room {
         if !config
             .bot
@@ -276,25 +212,13 @@ async fn check_member(
     event: &SyncStateEvent<MemberEventContent>,
     room: &Joined,
     client: &Client,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
     // Check `invite`, `join` and `knock` states against rule lists and apply ban if there's a match
     if event.content.membership == MembershipState::Invite
         || event.content.membership == MembershipState::Join
         || event.content.membership == MembershipState::Knock
     {
-        let mut events = get_user_rules(client, room, event).await?;
-        events.sort_by_key(|e| e.content.action);
-        if let Some(event) = events.first() {
-            apply_rule(
-                room,
-                UserId::try_from(event.state_key.clone())?,
-                event.content.action,
-                event.content.reason.as_deref(),
-            )
-            .await?;
-        };
-
-        let mut events = get_server_rules(client, room, event).await?;
+        let mut events = get_rules(client, room, event).await?;
         events.sort_by_key(|e| e.content.action);
         if let Some(event) = events.first() {
             apply_rule(
@@ -315,7 +239,7 @@ async fn apply_rule(
     user: UserId,
     action: Action,
     reason: Option<&str>,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
     // TODO: Write tests for these actions
     match action {
         Action::Ban => {
@@ -351,33 +275,46 @@ async fn apply_rule(
     Ok(())
 }
 
+// TODO: Actually implement this properly when account data manipulation drops in matrix-sdk
+/// Gets a vec of the protected `RoomId`s.
+#[instrument]
+pub async fn get_protected_rooms(_client: &Client) -> anyhow::Result<Vec<RoomId>> {
+    Ok(vec![
+        RoomId::try_from("!iYnZafYUoXkeVPOSQh:matrix.org")?,
+        RoomId::try_from("!fsEJmDUHIdYFfFRTSH:jki.re")?,
+    ])
+}
+
+// TODO: Actually implement this properly when account data manipulation drops in matrix-sdk
+/// Creates an example room list. Placeholder until actual room lists can be fetched from account data.
+pub async fn get_rule_rooms(_client: &Client) -> anyhow::Result<Vec<RoomId>> {
+    Ok(vec![RoomId::try_from("!VLOvTiaFrBYAYplQFW:mozilla.org")?])
+}
+
 // There are opportunities for code reuse in this function and `get_server_rules()`, I just don't know how to do it well. A solution with generics was attempted but the cost ended up outweighing the benefits.
 /// Returns a `Vec` with state events containing user rules.
 #[instrument]
-async fn get_user_rules(
+async fn get_rules(
     client: &Client,
     room: &Joined,
     room_member: &SyncStateEvent<MemberEventContent>,
-) -> Result<Vec<SyncStateEvent<UserRuleEventContent>>, Error> {
+) -> anyhow::Result<Vec<SyncStateEvent<RuleEventContent>>> {
     let mut events = Vec::new();
-    for r in mock_room_list() {
+    for r in get_rule_rooms(client).await? {
         debug!("{:?}", r);
         let rule_room = match client.get_joined_room(&r) {
             Some(room) => room,
             None => continue,
         };
         let events_inner = rule_room
-            .get_state_events(EventType::from("sh.nao.clobber.rule.user"))
+            .get_state_events(EventType::from("sh.nao.clobber.rule"))
             .await
             .unwrap();
-        let events_inner: Vec<SyncStateEvent<UserRuleEventContent>> = events_inner
+        let events_inner: Vec<SyncStateEvent<RuleEventContent>> = events_inner
             .iter()
-            .filter_map(|e| {
-                e.deserialize_as::<SyncStateEvent<UserRuleEventContent>>()
-                    .ok()
-            })
+            .filter_map(|e| e.deserialize_as::<SyncStateEvent<RuleEventContent>>().ok())
             .filter(|e| {
-                is_match_user_rule(
+                is_match_rule(
                     UserId::try_from(room_member.state_key.clone()).unwrap(),
                     &e.content,
                 )
@@ -389,55 +326,19 @@ async fn get_user_rules(
     Ok(events)
 }
 
-/// Returns a `Vec` with state events containing server rules.
+/// Constructs a `sh.nao.clobber.rule` state event and sends it to the appropriate room.
 #[instrument]
-async fn get_server_rules(
-    client: &Client,
-    room: &Joined,
-    room_member: &SyncStateEvent<MemberEventContent>,
-) -> Result<Vec<SyncStateEvent<ServerRuleEventContent>>, Error> {
-    let mut events = Vec::new();
-    for r in mock_room_list() {
-        debug!("{:?}", r);
-        let rule_room = match client.get_joined_room(&r) {
-            Some(room) => room,
-            None => continue,
-        };
-        let events_inner = rule_room
-            .get_state_events(EventType::from("sh.nao.clobber.rule.server"))
-            .await
-            .unwrap();
-        let events_inner: Vec<SyncStateEvent<ServerRuleEventContent>> = events_inner
-            .iter()
-            .filter_map(|e| {
-                e.deserialize_as::<SyncStateEvent<ServerRuleEventContent>>()
-                    .ok()
-            })
-            .filter(|e| {
-                is_match_server_rule(
-                    UserId::try_from(room_member.state_key.clone()).unwrap(),
-                    &e.content,
-                )
-            })
-            .collect();
-        events.extend(events_inner);
-    }
-    Ok(events)
-}
-
-/// Constructs a `sh.nao.clobber.rule.user` state event and sends it to the appropriate room.
-#[instrument]
-async fn set_user_rule(
+pub async fn set_rule(
     client: &Client,
     rule_list: &Joined,
     entity: &str,
     action: Action,
-    reason: Option<String>,
-) -> Result<(), anyhow::Error> {
-    let rule = UserRuleEventContent {
+    reason: Option<&str>,
+) -> anyhow::Result<()> {
+    let rule = RuleEventContent {
         entity: entity.to_string(),
         action,
-        reason,
+        reason: reason.map(|r| r.to_string()),
     };
     let raw_rule = serde_json::value::to_raw_value(&rule)?;
     let request = Request::new_raw(
@@ -450,149 +351,171 @@ async fn set_user_rule(
     Ok(())
 }
 
-/// Constructs a `sh.nao.clobber.rule.user` state event and sends it to the appropriate room.
-#[instrument]
-async fn set_server_rule(
-    client: &Client,
-    rule_list: &Joined,
-    entity: &str,
-    action: Action,
-    reason: Option<String>,
-) -> Result<(), anyhow::Error> {
-    let rule = ServerRuleEventContent {
-        entity: entity.to_string(),
-        action,
-        reason,
+/// Gets the room for a given list. Attemps to join if not already joined to the room.
+pub async fn get_list_room(client: &Client, _list: &str) -> anyhow::Result<Joined> {
+    // TODO: Actually get this from account data
+    let list = RuleList {
+        shortcode: String::from("spam"),
+        room: RoomId::try_from("!roomid:domain.tld")?,
     };
-    let raw_rule = serde_json::to_string(&rule)?;
-    let request = Request::new_raw(
-        rule_list.room_id(),
-        rule.event_type(),
-        entity,
-        serde_json::from_str::<Raw<AnyStateEventContent>>(&raw_rule)?,
-    );
-    client.send(request, None).await?;
-    Ok(())
+    let room = client.get_room(&list.room).unwrap();
+    match room {
+        Room::Joined(_) => (),
+        Room::Invited(invited) => invited.accept_invitation().await?,
+        _ => {
+            client.join_room_by_id(&list.room).await?;
+        }
+    };
+    Ok(client.get_joined_room(&list.room).unwrap())
 }
-
 /// Checks a `UserId` against a user rule and returns true if it matches.
-fn is_match_user_rule(user_id: UserId, rule: &UserRuleEventContent) -> Result<bool, anyhow::Error> {
+pub fn is_match_rule(user_id: UserId, rule: &RuleEventContent) -> anyhow::Result<bool> {
     debug!("{:?}", rule);
-    let glob = Glob::new(&rule.entity)?.compile_matcher();
-    let user_id = user_id;
-    Ok(glob.is_match(user_id.as_str()))
+    is_match_entity(user_id, rule.entity.clone())
 }
 
-/// Checks a `UserId` against a server rule and returns true if it matches.
-fn is_match_server_rule(user_id: UserId, rule: &ServerRuleEventContent) -> bool {
-    debug!("{:?}", rule);
-    let glob = Glob::new(&rule.entity).unwrap().compile_matcher();
+/// Checks a `UserId` against a rule entity and returns true if it matches.
+pub fn is_match_entity(user_id: UserId, entity: String) -> anyhow::Result<bool> {
+    let glob = Glob::new(&entity)?.compile_matcher();
     let user_id = user_id;
-    glob.is_match(user_id.server_name().as_str())
+    Ok(glob.is_match(user_id.as_str()) || glob.is_match(user_id.server_name().as_str()))
 }
 
-/// Creates an example room list. Placeholder until actual room lists can be fetched from account data.
-fn mock_room_list() -> Vec<RoomId> {
-    vec![RoomId::try_from("!BqCrVFYKvHgjnsFYss:queersin.space").unwrap()]
+// TODO: Turn these into proper types and implement parsing as methods, better error handling
+/// Parses a rule entity.
+pub fn is_entity_server(entity: &str) -> anyhow::Result<bool> {
+    if entity.starts_with('@') && entity.contains(':') && !entity.starts_with("@:") {
+        Ok(false)
+    } else if !entity.contains(':') {
+        Ok(true)
+    } else {
+        Err(anyhow!("Not a valid entity"))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
 
-    use matrix_sdk::ruma::UserId;
+    use matrix_sdk::ruma::{user_id, UserId};
     #[allow(unused_imports)]
     use tracing::{debug, error, info, warn};
 
-    use super::{
-        is_match_server_rule, is_match_user_rule, Action, ServerRuleEventContent,
-        UserRuleEventContent,
-    };
+    use super::{Action, RuleEventContent};
+    use crate::bot::{is_entity_server, is_match_rule};
 
     #[tokio::test]
     #[allow(clippy::semicolon_if_nothing_returned)]
-    async fn test_server_rules() {
-        let baduser1: UserId = UserId::try_from("@foobar:badserver.tld").unwrap();
-        let baduser2: UserId = UserId::try_from("@foobar:subdomain.badserver.tld").unwrap();
+    async fn test_rule_matching() {
+        let user_id: UserId = user_id!("@foobar:badserver.tld");
+        let glob_user_id: UserId = user_id!("@foobar:baz.badserver.tld");
 
-        let full = ServerRuleEventContent {
-            action: Action::Ban,
-            entity: String::from("badserver.tld"),
-            reason: Some(String::from("spam")),
-        };
-
-        let tld = ServerRuleEventContent {
-            action: Action::Ban,
-            entity: String::from("*.tld"),
-            reason: Some(String::from("spam")),
-        };
-
-        let full_miss = ServerRuleEventContent {
-            action: Action::Ban,
-            entity: String::from("goodserver.tld"),
-            reason: Some(String::from("spam")),
-        };
-
-        let glob_miss = ServerRuleEventContent {
-            action: Action::Ban,
-            entity: String::from("*.goodserver.tld"),
-            reason: Some(String::from("spam")),
-        };
-
-        let tld_miss = ServerRuleEventContent {
-            action: Action::Ban,
-            entity: String::from("*.xyz"),
-            reason: Some(String::from("spam")),
-        };
-
-        assert!(is_match_server_rule(baduser1.clone(), &full));
-        assert!(is_match_server_rule(baduser1.clone(), &tld));
-
-        assert!(!is_match_server_rule(baduser1.clone(), &full_miss));
-        assert!(!is_match_server_rule(baduser1.clone(), &glob_miss));
-        assert!(!is_match_server_rule(baduser1, &tld_miss));
-
-        let glob = ServerRuleEventContent {
-            action: Action::Ban,
-            entity: String::from("*.badserver.tld"),
-            reason: Some(String::from("spam")),
-        };
-
-        assert!(is_match_server_rule(baduser2, &glob));
-    }
-
-    #[tokio::test]
-    #[allow(clippy::semicolon_if_nothing_returned)]
-    async fn test_user_rules() {
-        let user_id: UserId = UserId::try_from("@foobar:badserver.tld").unwrap();
-
-        let full = UserRuleEventContent {
+        let full = RuleEventContent {
             action: Action::Ban,
             entity: String::from("@foobar:badserver.tld"),
             reason: Some(String::from("spam")),
         };
 
-        let glob = UserRuleEventContent {
+        let glob = RuleEventContent {
             action: Action::Ban,
             entity: String::from("@foo*:badserver.tld"),
             reason: Some(String::from("spam")),
         };
 
-        let full_miss = UserRuleEventContent {
+        let full_miss = RuleEventContent {
             action: Action::Ban,
             entity: String::from("@bob:badserver.tld"),
             reason: Some(String::from("spam")),
         };
 
-        let glob_miss = UserRuleEventContent {
+        let glob_miss = RuleEventContent {
             action: Action::Ban,
             entity: String::from("@*bob:badserver.tld"),
             reason: Some(String::from("spam")),
         };
 
-        assert!(is_match_user_rule(user_id.clone(), &full).unwrap());
-        assert!(is_match_user_rule(user_id.clone(), &glob).unwrap());
-        assert!(!is_match_user_rule(user_id.clone(), &full_miss).unwrap());
-        assert!(!is_match_user_rule(user_id, &glob_miss).unwrap());
+        let full_server = RuleEventContent {
+            action: Action::Ban,
+            entity: String::from("badserver.tld"),
+            reason: Some(String::from("spam")),
+        };
+
+        let glob_subdomain = RuleEventContent {
+            action: Action::Ban,
+            entity: String::from("*.badserver.tld"),
+            reason: Some(String::from("spam")),
+        };
+
+        let glob_server = RuleEventContent {
+            action: Action::Ban,
+            entity: String::from("*adserver.tld"),
+            reason: Some(String::from("spam")),
+        };
+
+        let full_server_miss = RuleEventContent {
+            action: Action::Ban,
+            entity: String::from("goodserver.tld"),
+            reason: Some(String::from("spam")),
+        };
+
+        let glob_subdomain_miss = RuleEventContent {
+            action: Action::Ban,
+            entity: String::from("*.goodserver.tld"),
+            reason: Some(String::from("spam")),
+        };
+
+        let glob_server_miss = RuleEventContent {
+            action: Action::Ban,
+            entity: String::from("*goodserver.tld"),
+            reason: Some(String::from("spam")),
+        };
+        assert!(is_match_rule(user_id.clone(), &full).unwrap());
+        assert!(is_match_rule(user_id.clone(), &glob).unwrap());
+        assert!(!is_match_rule(user_id.clone(), &full_miss).unwrap());
+        assert!(!is_match_rule(user_id.clone(), &glob_miss).unwrap());
+        assert!(is_match_rule(user_id.clone(), &full_server).unwrap());
+        assert!(is_match_rule(glob_user_id.clone(), &glob_subdomain).unwrap());
+        assert!(is_match_rule(user_id.clone(), &glob_server).unwrap());
+        assert!(!is_match_rule(user_id.clone(), &full_server_miss).unwrap());
+        assert!(!is_match_rule(user_id, &glob_server_miss).unwrap());
+        assert!(!is_match_rule(glob_user_id, &glob_subdomain_miss).unwrap());
+    }
+
+    #[test]
+    #[allow(clippy::semicolon_if_nothing_returned)]
+    fn test_entity_parsing() -> anyhow::Result<()> {
+        let user1 = "@user:domain.tld";
+        let user2 = "@*:domain.tld";
+        let user3 = "@user*:domain.tld";
+        let user4 = "@user:*.domain.tld";
+
+        let server1 = "domain.tld";
+        let server2 = "*.domain.tld";
+        let server3 = "domain*.tld";
+        let server4 = "*.tld";
+        let server5 = "tld";
+
+        let invalid1 = "user:domain.tld";
+        let invalid2 = "domain.tld:8448";
+
+        assert!(!is_entity_server(user1)?);
+        assert!(!is_entity_server(user2)?);
+        assert!(!is_entity_server(user3)?);
+        assert!(!is_entity_server(user4)?);
+
+        assert!(is_entity_server(server1)?);
+        assert!(is_entity_server(server2)?);
+        assert!(is_entity_server(server3)?);
+        assert!(is_entity_server(server4)?);
+        assert!(is_entity_server(server5)?);
+
+        assert_eq!(
+            is_entity_server(invalid1).unwrap_err().to_string(),
+            "Not a valid entity"
+        );
+        assert_eq!(
+            is_entity_server(invalid2).unwrap_err().to_string(),
+            "Not a valid entity"
+        );
+        Ok(())
     }
 }

@@ -2,7 +2,6 @@
 // Copyright (C) 2020 Emelie Graven <em@nao.sh>
 // Licensed under the EUPL
 
-use anyhow::Result;
 use clap::{App, Arg};
 use matrix_sdk::{
     room::Room,
@@ -16,6 +15,7 @@ use matrix_sdk::{
 use tracing::{debug, error, info, warn};
 
 pub mod bot;
+pub mod command;
 pub mod config;
 pub mod matrix;
 
@@ -30,7 +30,7 @@ pub const PROGRAM_AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 /// Description of the program.
 pub const PROGRAM_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 
-pub async fn init() -> Result<()> {
+pub async fn init() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(tracing_subscriber::fmt().pretty().finish())?;
 
     let args = App::new(PROGRAM_NAME)
