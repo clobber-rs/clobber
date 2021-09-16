@@ -89,23 +89,36 @@ async fn ban(
         reason,
     )
     .await?;
-    for room in bot::get_protected_rooms(client)
-        .await?
-        .iter()
-        .filter_map(|room_id| client.get_joined_room(room_id))
-    {
-        let matching_users: Vec<UserId> = room
-            .joined_members()
-            .await?
-            .iter()
-            .filter(|member| {
-                bot::is_match_entity(member.user_id().clone(), entity.to_string()).unwrap_or(false)
-            })
-            .map(|member| member.user_id().to_owned())
-            .collect();
-        for user in matching_users.iter() {
-            room.ban_user(user, reason).await?;
-        }
-    }
     Ok(())
 }
+
+/// Mute a user.
+#[instrument]
+async fn mute(
+    event: &SyncMessageEvent<MessageEventContent>,
+    room: &Joined,
+    client: &Client,
+    config: &Config,
+    args: Vec<&str>,
+) -> anyhow::Result<()> {
+    let (list, entity, reason) = match args.as_slice() {
+        [list, entity] => (list, entity, None),
+        [list, entity, reason] => (list, entity, Some(*reason)),
+        _ => {
+            let message = "Invalid number of arguments!";
+            bot::send_reply(message, message, room, event.event_id.clone()).await?;
+            return Ok(());
+        }
+    };
+    bot::set_rule(
+        client,
+        &bot::get_list_room(client, list).await?,
+        entity,
+        bot::Action::Mute,
+        reason,
+    )
+    .await?;
+    Ok(())
+}
+
+// TODO: Implement kick command? What would it be useful for?

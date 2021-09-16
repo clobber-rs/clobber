@@ -326,7 +326,8 @@ async fn get_rules(
     Ok(events)
 }
 
-/// Constructs a `sh.nao.clobber.rule` state event and sends it to the appropriate room.
+/// Constructs a `sh.nao.clobber.rule` state event and sends it to the appropriate room. Also
+/// applies the rule to all protected rooms.
 #[instrument]
 pub async fn set_rule(
     client: &Client,
@@ -348,6 +349,24 @@ pub async fn set_rule(
         Raw::from_json(raw_rule),
     );
     client.send(request, None).await?;
+    for room in get_protected_rooms(client)
+        .await?
+        .iter()
+        .filter_map(|room_id| client.get_joined_room(room_id))
+    {
+        let matching_users: Vec<UserId> = room
+            .joined_members()
+            .await?
+            .iter()
+            .filter(|member| {
+                is_match_entity(member.user_id().clone(), entity.to_string()).unwrap_or(false)
+            })
+            .map(|member| member.user_id().to_owned())
+            .collect();
+        for user in matching_users.iter() {
+            apply_rule(&room, user.clone(), action, reason).await?;
+        }
+    }
     Ok(())
 }
 
