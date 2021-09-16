@@ -6,10 +6,7 @@
 
 use matrix_sdk::{
     room::Joined,
-    ruma::{
-        events::{room::message::MessageEventContent, SyncMessageEvent},
-        UserId,
-    },
+    ruma::events::{room::message::MessageEventContent, SyncMessageEvent},
     Client,
 };
 use tracing::instrument;
