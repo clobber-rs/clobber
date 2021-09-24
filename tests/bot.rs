@@ -20,7 +20,7 @@ use anyhow::anyhow;
 mod common;
 
 #[tokio::test]
-async fn test() -> anyhow::Result<()> {
+async fn test_() -> anyhow::Result<()> {
     let client = common::get_client().await;
     assert_eq!(
         client.whoami().await?.user_id,
@@ -39,7 +39,7 @@ async fn test_mute() -> anyhow::Result<()> {
             .sync(SyncSettings::default().token(client.sync_token().await.unwrap()))
             .await;
     });
-    let client_target = common::get_client_target().await;
+    let target = common::get_client_target().await;
     let room = client.create_room(Request::new()).await?;
     client.join_room_by_id(&room.room_id).await?;
     let mut delay = 2;
@@ -55,9 +55,9 @@ async fn test_mute() -> anyhow::Result<()> {
             panic!();
         }
     };
-    room.invite_user_by_id(&user_id!("@target:localhost"))
+    room.invite_user_by_id(&user_id!("@target:localhost:6167"))
         .await?;
-    let target_room = client_target.get_room(room.room_id()).unwrap();
+    let target_room = target.get_room(room.room_id()).unwrap();
     if let Room::Invited(target_room) = target_room {
         let mut delay = 2;
         while target_room.accept_invitation().await.is_err() {
@@ -72,11 +72,11 @@ async fn test_mute() -> anyhow::Result<()> {
     }
 
     let content = AnyMessageEventContent::RoomMessage(MessageEventContent::text_plain(
-        "?mute @target:localhost",
+        "?mute @target:localhost:6167",
     ));
     room.send(content, None).await.unwrap();
     let pl = room
-        .get_member(&client_target.user_id().await.unwrap())
+        .get_member(&target.user_id().await.unwrap())
         .await?
         .unwrap()
         .power_level();

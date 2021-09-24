@@ -11,7 +11,7 @@ use matrix_sdk::{
     ruma::{
         api::client::r0::state::send_state_event::Request,
         events::{AnySyncStateEvent, EventContent},
-        RoomId,
+        RoomId, ServerName,
     },
     ruma::{
         events::{
@@ -400,16 +400,10 @@ pub fn is_match_entity(user_id: UserId, entity: String) -> anyhow::Result<bool> 
     Ok(glob.is_match(user_id.as_str()) || glob.is_match(user_id.server_name().as_str()))
 }
 
-// TODO: Turn these into proper types and implement parsing as methods, better error handling
+// TODO: This is the laziest way possible of doing this. Make it better, and spec-compliant.
 /// Parses a rule entity.
-pub fn is_entity_server(entity: &str) -> anyhow::Result<bool> {
-    if entity.starts_with('@') && entity.contains(':') && !entity.starts_with("@:") {
-        Ok(false)
-    } else if !entity.contains(':') {
-        Ok(true)
-    } else {
-        Err(anyhow!("Not a valid entity"))
-    }
+pub fn is_entity_server(entity: &str) -> bool {
+    !entity.starts_with('@')
 }
 
 #[cfg(test)]
@@ -506,15 +500,16 @@ mod tests {
         let user2 = "@*:domain.tld";
         let user3 = "@user*:domain.tld";
         let user4 = "@user:*.domain.tld";
+        let user5 = "@user:domain.tld:1234";
 
         let server1 = "domain.tld";
         let server2 = "*.domain.tld";
         let server3 = "domain*.tld";
         let server4 = "*.tld";
         let server5 = "tld";
+        let server6 = "domain.tld:1234";
 
         let invalid1 = "user:domain.tld";
-        let invalid2 = "domain.tld:8448";
 
         assert!(!is_entity_server(user1)?);
         assert!(!is_entity_server(user2)?);
@@ -529,10 +524,6 @@ mod tests {
 
         assert_eq!(
             is_entity_server(invalid1).unwrap_err().to_string(),
-            "Not a valid entity"
-        );
-        assert_eq!(
-            is_entity_server(invalid2).unwrap_err().to_string(),
             "Not a valid entity"
         );
         Ok(())
