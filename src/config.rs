@@ -4,7 +4,6 @@
 
 //! Configuration related functionality.
 
-use anyhow::Result;
 use matrix_sdk::ruma::UserId;
 use serde::{Deserialize, Serialize};
 use std::os::unix::fs::PermissionsExt;
@@ -24,7 +23,7 @@ pub struct Config {
 
 impl Config {
     /// Reads configuration from file.
-    pub fn read_config() -> Result<Self> {
+    pub fn read_config() -> anyhow::Result<Self> {
         let config_file = config_path();
 
         let data = fs::read(config_file)?;
@@ -33,7 +32,7 @@ impl Config {
 }
 
 /// Returns path to data directory, or creates one if one does not exist. Also checks directory permissions to ensure sensitive data is not readable by others.
-pub fn get_data_dir() -> std::io::Result<PathBuf> {
+pub fn get_data_dir() -> anyhow::Result<PathBuf> {
     let data_dir = if Path::new("data").is_dir() {
         Path::new("data")
     } else if Path::new("/var/lib/clobber").is_dir() {
@@ -71,18 +70,18 @@ fn config_path() -> PathBuf {
 /// Extension trait for `matrix_sdk::Session`. Provides convenience functions for loading and saving sessions.
 pub trait SessionExt: Sized {
     /// Load session from file.
-    fn load_session() -> Result<Self>;
+    fn load_session() -> anyhow::Result<Self>;
     /// Save session to file.
-    fn save_session(&self) -> Result<()>;
+    fn save_session(&self) -> anyhow::Result<()>;
 }
 
 impl SessionExt for matrix_sdk::Session {
-    fn load_session() -> Result<Self> {
+    fn load_session() -> anyhow::Result<Self> {
         let data = fs::read(get_data_dir()?.join("session.json"))?;
         Ok(serde_json::from_slice(&data)?)
     }
 
-    fn save_session(&self) -> Result<()> {
+    fn save_session(&self) -> anyhow::Result<()> {
         let data = serde_json::to_string_pretty(&self)?;
         fs::write(get_data_dir()?.join("session.json"), data)?;
         Ok(())

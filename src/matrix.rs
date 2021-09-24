@@ -8,15 +8,16 @@ use crate::{
     config::{self, Config, SessionExt},
     PROGRAM_NAME, PROGRAM_VERSION,
 };
-use anyhow::Result;
 use matrix_sdk::{reqwest, Client, ClientConfig, Session};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use std::io;
 #[allow(unused_imports)]
 use tracing::{debug, error, info, warn};
+use tracing_attributes::instrument;
 
 /// Struct containing info collected from user via interactive login, used for initial login.
+#[derive(Debug)]
 pub struct InteractiveLogin {
     /// Username
     pub username: String,
@@ -26,7 +27,7 @@ pub struct InteractiveLogin {
 
 impl InteractiveLogin {
     /// Interactively collects login information from user via stdin
-    pub fn from_stdin() -> Result<Self> {
+    pub fn from_stdin() -> anyhow::Result<Self> {
         println!("Enter username: ");
         let mut username = String::new();
         io::stdin().read_line(&mut username)?;
@@ -40,7 +41,8 @@ impl InteractiveLogin {
 }
 
 /// Perform initial login with interactive login information collected from user
-pub async fn interactive_login() -> Result<Client> {
+#[instrument]
+pub async fn interactive_login() -> anyhow::Result<Client> {
     debug!("Starting interactive login flow");
     let config = Config::read_config()?;
     // Set device display name to randomized string. Example: "Clobber_vzN2gq"
@@ -85,7 +87,8 @@ pub async fn interactive_login() -> Result<Client> {
 }
 
 /// Restore login from saved session
-pub async fn login() -> Result<Client> {
+#[instrument]
+pub async fn login() -> anyhow::Result<Client> {
     let client_config = client_config()?;
     let config = Config::read_config()?;
     let session = Session::load_session()?;
@@ -99,25 +102,9 @@ pub async fn login() -> Result<Client> {
 }
 
 /// Construct `matrix_sdk` `ClientConfig`
-fn client_config() -> Result<ClientConfig> {
+fn client_config() -> anyhow::Result<ClientConfig> {
     let client_config = ClientConfig::new()
         .user_agent(&format!("{}/{}", PROGRAM_NAME, PROGRAM_VERSION))?
         .store_path(config::get_data_dir()?);
     Ok(client_config)
-}
-
-/// Listener struct for incoming matrix events
-pub struct Listener {
-    /// Instance of config::Config
-    pub config: Config,
-    /// Instance of matrix_sdk::Client
-    pub client: Client,
-}
-
-impl Listener {
-    /// Constructor for Listener
-    #[must_use]
-    pub const fn new(config: Config, client: Client) -> Self {
-        Self { config, client }
-    }
 }
